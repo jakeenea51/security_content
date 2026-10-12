@@ -1,14 +1,14 @@
 name: Windows Indirect Command Execution Via forfiles
 id: 1fdf31c9-ff4d-4c48-b799-0e8666e08787
-version: 9
-date: '2026-03-10'
+version: 12
+creation_date: '2022-03-04'
+modification_date: '2026-10-09'
 author: Eric McGinnis, Splunk
 status: production
 type: TTP
 description: The following analytic detects the execution of programs initiated by forfiles.exe. This command is typically used to run commands on multiple files, often within batch scripts. The detection leverages data from Endpoint Detection and Response (EDR) agents, focusing on process creation events where forfiles.exe is the parent process. This activity is significant because forfiles.exe can be exploited to bypass command line execution protections, making it a potential vector for malicious activity. If confirmed malicious, this could allow attackers to execute arbitrary commands, potentially leading to unauthorized access or further system compromise.
 data_source:
     - Sysmon EventID 1
-    - CrowdStrike ProcessRollup2
 search: |-
     | tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime FROM datamodel=Endpoint.Processes
       WHERE Processes.parent_process="*forfiles* /c *"
@@ -28,37 +28,40 @@ known_false_positives: Some legacy applications may be run using pcalua.exe. Sim
 references:
     - https://twitter.com/KyleHanslovan/status/912659279806640128
     - https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/forfiles
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1202/T1202.yaml#L27
 drilldown_searches:
     - name: View the detection results for - "$dest$"
       search: '%original_detection_search% | search  dest = "$dest$"'
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
     - name: View risk events for the last 7 days for - "$dest$"
-      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$dest$") starthoursago=168  | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
-      earliest_offset: $info_min_time$
-      latest_offset: $info_max_time$
-rba:
-    message: The forfiles command (forfiles.exe) launched the process name -  $process_name$
-    risk_objects:
-        - field: dest
-          type: system
-          score: 50
-    threat_objects: []
-tags:
-    analytic_story:
-        - Living Off The Land
-        - Windows Post-Exploitation
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1202
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$dest$") | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
+      earliest_offset: 7d
+      latest_offset: "0"
+finding:
+    title: The forfiles command (forfiles.exe) launched the process name -  $process_name$
+    entity:
+        field: dest
+        type: system
+        score: 50
+analytic_story:
+    - Living Off The Land
+    - Windows Post-Exploitation
+asset_type: Endpoint
+atomic_guid:
+    - 8b34a448-40d9-4fc3-a8c8-4bb286faf7dc
+mitre_attack_id:
+    - T1202
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1202/atomic_red_team/windows-sysmon.log
           source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
           sourcetype: XmlWinEventLog
+      test_type: unit

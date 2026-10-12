@@ -1,7 +1,8 @@
 name: Cisco NVM - Non-Network Binary Making Network Connection
 id: c6db35af-8a0e-4b61-88ed-738e66f15715
-version: 4
-date: '2026-03-10'
+version: 6
+creation_date: '2025-07-01'
+modification_date: '2026-09-22'
 author: Nasreddine Bencherchali, Splunk
 status: production
 type: Anomaly
@@ -45,14 +46,13 @@ search: |
       additional_logged_in_users_list module_name_list module_hash_list
       src dest_hostname dest dest_port transport firstTime lastTime
     | `cisco_nvm___non_network_binary_making_network_connection_filter`
-how_to_implement: |
+how_to_implement: |-
     This search requires Network Visibility Module logs, which includes the flow data sourcetype.
     This search uses an input macro named `cisco_network_visibility_module_flowdata`.
-    We strongly recommend that you specify your environment-specific configurations
-    (index, source, sourcetype, etc.) for Cisco Network Visibility Module logs.
+    We strongly recommend that you specify your environment-specific configurations (index, source, sourcetype, etc.) for Cisco Network Visibility Module logs.
     Replace the macro definition with configurations for your Splunk environment.
     The search also uses a post-filter macro designed to filter out known false positives.
-    The logs are to be ingested using the Splunk Add-on for Cisco Endpoint Security Analytics (CESA) (https://splunkbase.splunk.com/app/4221).
+    The logs are to be ingested using the Cisco Security Cloud App for Splunk (https://splunkbase.splunk.com/app/7404).
 known_false_positives: |
     Rare cases may exist where these binaries are used by plugins or third-party extensions to initiate outbound communication.
     However, such behavior is extremely uncommon and should be investigated for potential injection or abuse.
@@ -65,33 +65,34 @@ drilldown_searches:
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
     - name: View risk events for the last 7 days for - "$src$"
-      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$src$") starthoursago=168  | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
-      earliest_offset: $info_min_time$
-      latest_offset: $info_max_time$
-rba:
-    message: The host $src$ observed $process_path$ initiating a network connection to $dest$ over port $dest_port$, which is highly unusual
-    risk_objects:
+      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$src$") | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
+      earliest_offset: 7d
+      latest_offset: "0"
+intermediate_findings:
+    entities:
         - field: src
           type: system
           score: 20
-    threat_objects:
-        - field: process_name
-          type: process_name
-tags:
-    analytic_story:
-        - Cisco Network Visibility Module Analytics
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1055
-        - T1036
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+          message: The host $src$ observed $process_path$ initiating a network connection to $dest$ over port $dest_port$, which is highly unusual
+threat_objects:
+    - field: process_name
+      type: process_name
+analytic_story:
+    - Cisco Network Visibility Module Analytics
+asset_type: Endpoint
+mitre_attack_id:
+    - T1055
+    - T1036
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test - Cisco NVM
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/cisco_network_visibility_module/cisco_nvm_flowdata/nvm_flowdata.log
           source: not_applicable
-          sourcetype: cisco:nvm:flowdata
+          sourcetype: cisco:nvm:flowdata:v2
+      test_type: unit

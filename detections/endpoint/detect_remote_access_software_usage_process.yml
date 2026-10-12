@@ -1,7 +1,8 @@
 name: Detect Remote Access Software Usage Process
 id: ffd5e001-2e34-48f4-97a2-26dc4bb08178
-version: 15
-date: '2026-03-10'
+version: 18
+creation_date: '2024-03-06'
+modification_date: '2026-10-09'
 author: Steven Dick, Sebastian Wurl, Splunk Community
 status: production
 type: Anomaly
@@ -23,7 +24,7 @@ search: |
     | `security_content_ctime(firstTime)`
     | `security_content_ctime(lastTime)`
     | `drop_dm_object_name(Processes)`
-    | lookup remote_access_software remote_utility AS process_name OUTPUT isutility description AS signature comment_reference AS desc category
+    | lookup local=t remote_access_software remote_utility AS process_name OUTPUT isutility description AS signature comment_reference AS desc category
     | search isutility = TRUE
     | `remote_access_software_usage_exceptions`
     | `detect_remote_access_software_usage_process_filter`
@@ -33,57 +34,80 @@ references:
     - https://attack.mitre.org/techniques/T1219/
     - https://thedfirreport.com/2022/08/08/bumblebee-roasts-its-way-to-domain-admin/
     - https://thedfirreport.com/2022/11/28/emotet-strikes-again-lnk-file-leads-to-domain-wide-ransomware/
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L5
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L95
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L222
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L250
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L287
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L314
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L342
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L371
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L452
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L483
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1219/T1219.yaml#L509
 drilldown_searches:
     - name: View the detection results for - "$dest$" and "$user$"
       search: '%original_detection_search% | search  dest = "$dest$" user = "$user$"'
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
     - name: View risk events for the last 7 days for - "$dest$" and "$user$"
-      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$dest$", "$user$") starthoursago=168  | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
-      earliest_offset: $info_min_time$
-      latest_offset: $info_max_time$
+      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$dest$", "$user$") | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
+      earliest_offset: 7d
+      latest_offset: "0"
     - name: Investigate processes on $dest$
       search: '| from datamodel:Endpoint.Processes| search dest=$dest$ process_name=$process_name$'
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
-rba:
-    message: A process for a known remote access software $process_name$ was identified on $dest$.
-    risk_objects:
+intermediate_findings:
+    entities:
         - field: dest
           type: system
           score: 20
+          message: A process for a known remote access software $process_name$ was identified on $dest$.
         - field: user
           type: user
           score: 20
-    threat_objects:
-        - field: process_name
-          type: process_name
-        - field: signature
-          type: signature
-tags:
-    analytic_story:
-        - Insider Threat
-        - Command And Control
-        - Ransomware
-        - Gozi Malware
-        - CISA AA24-241A
-        - Remote Monitoring and Management Software
-        - Cactus Ransomware
-        - Seashell Blizzard
-        - Scattered Spider
-        - Interlock Ransomware
-        - GhostRedirector IIS Module and Rungan Backdoor
-        - Scattered Lapsus$ Hunters
-        - Storm-0501 Ransomware
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1219
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
-    manual_test: This detection uses A&I lookups from Enterprise Security.
+          message: A process for a known remote access software $process_name$ was identified on $dest$.
+threat_objects:
+    - field: process_name
+      type: process_name
+    - field: signature
+      type: signature
+analytic_story:
+    - Insider Threat
+    - Command And Control
+    - Ransomware
+    - Gozi Malware
+    - CISA AA24-241A
+    - Remote Monitoring and Management Software
+    - Cactus Ransomware
+    - Seashell Blizzard
+    - Scattered Spider
+    - Interlock Ransomware
+    - GhostRedirector IIS Module and Rungan Backdoor
+    - Scattered Lapsus$ Hunters
+    - Storm-0501 Ransomware
+asset_type: Endpoint
+atomic_guid:
+    - 8ca3b96d-8983-4a7f-b125-fc98cc0a2aa0
+    - d03683ec-aae0-42f9-9b4c-534780e0f8e1
+    - 0ae9e327-3251-465a-a53b-485d4e3f58fa
+    - fbff3f1f-b0bf-448e-840f-7e1687affdce
+    - ecca999b-e0c8-40e8-8416-ad320b146a75
+    - 19acf63b-55c4-4b6a-8552-00a8865105c8
+    - 42e51815-a6cc-4c75-b970-3f0ff54b610e
+    - b1b8128b-c5d4-4de9-bf70-e60419274562
+    - b025c580-029e-4023-888d-a42710d76934
+    - 3e1858ee-3550-401c-86ec-5e70ed79295b
+    - 1aea6d15-70f1-4b4e-8b02-397b5d5ffe75
+mitre_attack_id:
+    - T1219
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
@@ -93,3 +117,5 @@ tests:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1219/atomic_red_team/windows-sysmon.log
           source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
           sourcetype: XmlWinEventLog
+      description: PORTED MANUAL TEST - This detection uses A&I lookups from Enterprise Security.
+      test_type: experimental

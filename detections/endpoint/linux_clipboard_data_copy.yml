@@ -1,7 +1,8 @@
 name: Linux Clipboard Data Copy
 id: 7173b2ad-6146-418f-85ae-c3479e4515fc
-version: 9
-date: '2026-03-10'
+version: 11
+creation_date: '2022-06-17'
+modification_date: '2026-10-02'
 author: Michael Haag, Splunk
 status: production
 type: Anomaly
@@ -27,41 +28,46 @@ known_false_positives: False positives may be present on Linux desktop as it may
 references:
     - https://attack.mitre.org/techniques/T1115/
     - https://linux.die.net/man/1/xclip
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1115/T1115.yaml#L73
 drilldown_searches:
     - name: View the detection results for - "$user$" and "$dest$"
       search: '%original_detection_search% | search  user = "$user$" dest = "$dest$"'
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
     - name: View risk events for the last 7 days for - "$user$" and "$dest$"
-      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$user$", "$dest$") starthoursago=168  | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
-      earliest_offset: $info_min_time$
-      latest_offset: $info_max_time$
-rba:
-    message: An instance of $process_name$ was identified on endpoint $dest$ by user $user$ adding or removing content from the clipboard.
-    risk_objects:
+      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$user$", "$dest$") | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
+      earliest_offset: 7d
+      latest_offset: "0"
+intermediate_findings:
+    entities:
         - field: user
           type: user
           score: 20
+          message: An instance of $process_name$ was identified on endpoint $dest$ by user $user$ adding or removing content from the clipboard.
         - field: dest
           type: system
           score: 20
-    threat_objects:
-        - field: process_name
-          type: process_name
-tags:
-    analytic_story:
-        - Linux Living Off The Land
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1115
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+          message: An instance of $process_name$ was identified on endpoint $dest$ by user $user$ adding or removing content from the clipboard.
+threat_objects:
+    - field: process_name
+      type: process_name
+analytic_story:
+    - Linux Living Off The Land
+asset_type: Endpoint
+atomic_guid:
+    - ee363e53-b083-4230-aff3-f8d955f2d5bb
+mitre_attack_id:
+    - T1115
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1115/atomic_red_team/linux-sysmon.log
           source: Syslog:Linux-Sysmon/Operational
           sourcetype: sysmon:linux
+      test_type: unit

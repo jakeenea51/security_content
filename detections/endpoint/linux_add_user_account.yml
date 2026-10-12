@@ -1,7 +1,8 @@
 name: Linux Add User Account
 id: 51fbcaf2-6259-11ec-b0f3-acde48001122
-version: 9
-date: '2026-02-25'
+version: 10
+creation_date: '2022-01-10'
+modification_date: '2026-10-02'
 author: Teoderick Contreras, Bhavin Patel, Splunk
 status: production
 type: Hunting
@@ -29,27 +30,32 @@ how_to_implement: The detection is based on data that originates from Endpoint D
 known_false_positives: Administrator or network operator can execute this command. Please update the filter macros to remove false positives.
 references:
     - https://linuxize.com/post/how-to-create-users-in-linux-using-the-useradd-command/
-tags:
-    analytic_story:
-        - Linux Privilege Escalation
-        - Linux Persistence Techniques
-        - Cisco Isovalent Suspicious Activity
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1136.001
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1136.001/T1136.001.yaml#L5
+analytic_story:
+    - Linux Privilege Escalation
+    - Linux Persistence Techniques
+    - Cisco Isovalent Suspicious Activity
+asset_type: Endpoint
+atomic_guid:
+    - 40d8eabd-e394-46f6-8785-b9bfa1d011d2
+mitre_attack_id:
+    - T1136.001
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1548.003/linux_adduser/sysmon_linux.log
           source: Syslog:Linux-Sysmon/Operational
           sourcetype: sysmon:linux
+      test_type: unit
     - name: True Positive Test - Cisco Isovalent
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/cisco_isovalent/cisco_isovalent.log
           source: not_applicable
           sourcetype: cisco:isovalent:processExec
+      test_type: unit

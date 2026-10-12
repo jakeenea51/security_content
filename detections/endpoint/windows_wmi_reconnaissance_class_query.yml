@@ -1,7 +1,8 @@
 name: Windows WMI Reconnaissance Class Query
 id: 5e38bd3e-5da7-483d-aa61-27f7e8c27ad1
-version: 1
-date: '2026-03-03'
+version: 3
+creation_date: '2026-03-16'
+modification_date: '2026-10-02'
 author: Teoderick Contreras, Splunk
 status: production
 type: Anomaly
@@ -63,43 +64,52 @@ how_to_implement: |
 known_false_positives: Administrators may execute this command for testing or auditing.
 references:
     - https://malpedia.caad.fkie.fraunhofer.de/details/py.blankgrabber
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1047/T1047.yaml#L5
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1047/T1047.yaml#L24
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1047/T1047.yaml#L43
 drilldown_searches:
     - name: View the detection results for - "$user$" and "$dest$"
       search: '%original_detection_search% | search  user = "$user$" dest = "$dest$"'
       earliest_offset: $info_min_time$
       latest_offset: $info_max_time$
     - name: View risk events for the last 7 days for - "$user$" and "$dest$"
-      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$user$", "$dest$") starthoursago=168  | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
-      earliest_offset: $info_min_time$
-      latest_offset: $info_max_time$
-rba:
-    message: An instance of [$parent_process_name$] spawning [$process_name$] was identified on endpoint [$dest$] by user [$user$] attempting to enumerate system information via WMI classes using the Command [$process$].
-    risk_objects:
+      search: '| from datamodel Risk.All_Risk | search normalized_risk_object IN ("$user$", "$dest$") | stats count min(_time) as firstTime max(_time) as lastTime values(search_name) as "Search Name" values(risk_message) as "Risk Message" values(analyticstories) as "Analytic Stories" values(annotations._all) as "Annotations" values(annotations.mitre_attack.mitre_tactic) as "ATT&CK Tactics" by normalized_risk_object | `security_content_ctime(firstTime)` | `security_content_ctime(lastTime)`'
+      earliest_offset: 7d
+      latest_offset: "0"
+intermediate_findings:
+    entities:
         - field: dest
           type: system
           score: 20
+          message: An instance of [$parent_process_name$] spawning [$process_name$] was identified on endpoint [$dest$] by user [$user$] attempting to enumerate system information via WMI classes using the Command [$process$].
         - field: user
           type: user
           score: 20
-    threat_objects:
-        - field: parent_process_name
-          type: parent_process_name
-        - field: process_name
-          type: process_name
-tags:
-    analytic_story:
-        - BlankGrabber Stealer
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1047
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+          message: An instance of [$parent_process_name$] spawning [$process_name$] was identified on endpoint [$dest$] by user [$user$] attempting to enumerate system information via WMI classes using the Command [$process$].
+threat_objects:
+    - field: parent_process_name
+      type: parent_process_name
+    - field: process_name
+      type: process_name
+analytic_story:
+    - BlankGrabber Stealer
+asset_type: Endpoint
+atomic_guid:
+    - c107778c-dcf5-47c5-af2e-1d058a3df3ea
+    - 5750aa16-0e59-4410-8b9a-8a47ca2788e2
+    - 718aebaa-d0e0-471a-8241-c5afa69c7414
+mitre_attack_id:
+    - T1047
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1047/wmic_classes/wmic_cmd.log
           source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
           sourcetype: XmlWinEventLog
+      test_type: unit

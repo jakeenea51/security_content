@@ -1,7 +1,8 @@
 name: Windows NirSoft Utilities
 id: 5b2f4596-7d4c-11ec-88a7-acde48001122
-version: 9
-date: '2025-12-13'
+version: 11
+creation_date: '2022-01-24'
+modification_date: '2026-10-09'
 author: Michael Haag, Splunk
 status: production
 type: Hunting
@@ -28,7 +29,7 @@ search: |
     | `drop_dm_object_name("Processes")`
     | `security_content_ctime(firstTime)`
     | `security_content_ctime(lastTime)`
-    | lookup update=true is_nirsoft_software filename as process_name OUTPUT nirsoftFile
+    | lookup local=t update=true is_nirsoft_software filename as process_name OUTPUT nirsoftFile
     | search nirsoftFile=true
     | `windows_nirsoft_utilities_filter`
 how_to_implement: The detection is based on data that originates from Endpoint Detection and Response (EDR) agents. These agents are designed to provide security-related telemetry from the endpoints where the agent is installed. To implement this search, you must ingest logs that contain the process GUID, process name, and parent process. Additionally, you must ingest complete command-line executions. These logs must be processed using the appropriate Splunk Technology Add-ons that are specific to the EDR product. The logs must also be mapped to the `Processes` node of the `Endpoint` data model. Use the Splunk Common Information Model (CIM) to normalize the field names and speed up the data modeling process.
@@ -37,21 +38,25 @@ references:
     - https://www.cisa.gov/uscert/ncas/alerts/TA18-201A
     - http://www.nirsoft.net/
     - https://www.microsoft.com/security/blog/2022/01/15/destructive-malware-targeting-ukrainian-organizations/
-tags:
-    analytic_story:
-        - Data Destruction
-        - WhisperGate
-    asset_type: Endpoint
-    mitre_attack_id:
-        - T1588.002
-    product:
-        - Splunk Enterprise
-        - Splunk Enterprise Security
-        - Splunk Cloud
-    security_domain: endpoint
+    - https://github.com/redcanaryco/atomic-red-team/blob/388942adbd9641f4dfdcf079d7efe9a75ec0ac43/atomics/T1685/T1685.yaml#L623
+analytic_story:
+    - Data Destruction
+    - WhisperGate
+asset_type: Endpoint
+atomic_guid:
+    - 81ce22fd-9612-4154-918e-8a1f285d214d
+mitre_attack_id:
+    - T1588.002
+product:
+    - Splunk Enterprise
+    - Splunk Enterprise Security
+    - Splunk Cloud
+category: endpoint
+security_domain: endpoint
 tests:
     - name: True Positive Test
       attack_data:
         - data: https://media.githubusercontent.com/media/splunk/attack_data/master/datasets/attack_techniques/T1588.002/atomic_red_team/windows-sysmon.log
           source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
           sourcetype: XmlWinEventLog
+      test_type: unit
